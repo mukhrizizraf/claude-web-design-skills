@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.4 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Design Skill Router</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column; a job → phrase → skill switchboard grouped by stage of work, with a live filter on top. */
+:root {
+  --bg: #F3F5FA;
+  --surface: #FFFFFF;
+  --ink: #131A2D;
+  --muted: #586282;
+  --line: #DCE1EE;
+  --accent: #2E46D3;
+  --accent-soft: #E7EBFD;
+  --warn: #9A4E06;
+  --warn-soft: #FBEEDC;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1120; --surface: #151A2C; --ink: #E6E9F3; --muted: #97A0BD; --line: #262E4C;
+    --accent: #8E9EFF; --accent-soft: #1E2650; --warn: #F2A75C; --warn-soft: #3A2814;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1120; --surface: #151A2C; --ink: #E6E9F3; --muted: #97A0BD; --line: #262E4C;
+  --accent: #8E9EFF; --accent-soft: #1E2650; --warn: #F2A75C; --warn-soft: #3A2814;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 64px; display: flex; flex-direction: column; gap: 36px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 750; letter-spacing: -0.02em; line-height: 1.05; }
+h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.lede { color: var(--muted); max-width: 62ch; margin: 10px 0 0; font-size: 16px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+
+.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.rule b { display: block; font-size: 14px; margin-bottom: 4px; }
+.rule p { margin: 0; color: var(--muted); font-size: 14px; }
+code, .skill { font-family: var(--mono); font-size: 13px; }
+.rule code { color: var(--ink); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+.search { display: flex; flex-direction: column; gap: 6px; }
+.search label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.search input {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; width: 100%;
+}
+.search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.group { display: flex; flex-direction: column; gap: 10px; }
+.group-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.group-head span { color: var(--muted); font-size: 14px; }
+.table { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.cols, .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.9fr); gap: 16px; padding: 11px 16px; align-items: center; }
+.cols { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-block: 9px; }
+.row + .row { border-top: 1px solid var(--line); }
+.job { font-weight: 500; min-width: 0; }
+.say {
+  font: inherit; font-size: 14px; color: var(--muted); text-align: left; background: none; border: 0; padding: 4px 6px; margin: -4px -6px;
+  border-radius: 6px; cursor: pointer; min-width: 0; font-style: italic;
+}
+.say:hover { background: var(--accent-soft); color: var(--ink); }
+.say:focus-visible { outline: 2px solid var(--accent); }
+.say.copied::after { content: "  copied"; font-style: normal; font-size: 12px; color: var(--accent); font-weight: 600; }
+.pick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.skill { color: var(--accent); font-weight: 500; overflow-wrap: anywhere; }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.empty { color: var(--muted); padding: 24px 0; text-align: center; }
+
+.verbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.verb { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.verb code { color: var(--accent); font-weight: 500; }
+.verb p { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+
+footer { color: var(--muted); font-size: 13.5px; border-top: 1px solid var(--line); padding-top: 18px; }
+footer code { color: var(--ink); overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  .rules { grid-template-columns: minmax(0, 1fr); }
+  .cols { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Claude Code · design, UI and motion skills</p>
+    <h1>Design Skill Router</h1>
+    <p class="lede">Describe the job in plain words and Claude picks the skill, then tells you which one it used. This is the map it follows. Tap any phrase to copy it.</p>
+  </header>
+
+  <section class="rules" aria-label="How triggering works">
+    <div class="rule"><b>Just say it</b><p>Describe what you want. The matching skill switches on by itself.</p></div>
+    <div class="rule"><b>Force a specific one</b><p>Say “use the cast skill” or type <code>/cast</code>.</p></div>
+    <div class="rule"><b>Not sure?</b><p>Most web UI work goes through <code>impeccable</code>.</p></div>
+  </section>
+
+  <div class="search">
+    <label for="q">Find a skill by what you want to do</label>
+    <input id="q" type="search" placeholder="Try: scroll, polish, phone, 3D, fonts" autocomplete="off">
+    <span class="count" id="count" aria-live="polite"></span>
+  </div>
+
+  <div id="groups"></div>
+  <p class="empty" id="empty" hidden>Nothing matches. Try a broader word, or just describe it to Claude.</p>
+
+  <section class="group" aria-labelledby="verbs-h">
+    <div class="group-head"><h2 id="verbs-h">Impeccable commands</h2><span>Say the verb (“polish this”) or type <code>/impeccable polish</code></span></div>
+    <div class="verbs" id="verbs"></div>
+  </section>
+
+  <footer>The routing rules live in <code>~/.claude/CLAUDE.md</code> (source: <a href="https://github.com/mukhrizizraf/claude-web-design-skills/blob/main/CLAUDE.md" style="color:var(--accent)">CLAUDE.md in this repo</a>). If Claude picks the wrong skill, tell it which one you meant and ask it to update the table.</footer>
+</div>
+
+<script>
+const GROUPS = [
+  { name: "Reference & direction", note: "Before you design", rows: [
+    ["Copy the look of a site you like", "Make it feel like linear.app", "taste"],
+    ["Turn screenshots into a style", "Pull the style out of these screenshots", "design-dna"],
+    ["Find examples first", "Show me great pricing page examples", "design-inspiration"],
+    ["Pick colors, fonts or a style", "Suggest a palette and font pairing for a fintech app", "ui-ux-pro-max"],
+  ]},
+  { name: "Plan & build", note: "Making something new", rows: [
+    ["Plan before writing code", "Plan a landing page for my bakery", "impeccable", "shape"],
+    ["Build a page, section or component", "Build the pricing section", "impeccable"],
+    ["Full visual identity and design system", "Give this product a full visual identity", "paint"],
+    ["Whole multi-page site, full pipeline", "Run the full bunshin pipeline on my site", "bunshin", null, ["costly", "warn"]],
+    ["Several versions to compare", "/prototype the hero in three directions", "prototype", null, ["type /name"]],
+    ["Choose a library for a job", "/pick-ui-library for a date picker", "pick-ui-library", null, ["type /name"]],
+    ["Toast notifications with Sonner", "My toasts don't show up", "ask-sonner"],
+  ]},
+  { name: "Refine", note: "Improving what exists", rows: [
+    ["Final pass before shipping", "Polish this", "impeccable", "polish"],
+    ["Too plain or safe", "Make it bolder", "impeccable", "bolder"],
+    ["Too loud or busy", "Tone this down", "impeccable", "quieter"],
+    ["Fonts and text hierarchy", "Fix the typography", "impeccable", "typeset"],
+    ["Spacing and layout rhythm", "The spacing feels off", "impeccable", "layout"],
+    ["Labels, errors, microcopy", "Rewrite these error messages", "impeccable", "clarify"],
+    ["Feels wrong on a phone", "It feels like a website on my phone", "mobile-native"],
+    ["Apple-style feel", "Make this sheet feel like iOS", "apple-design"],
+  ]},
+  { name: "Motion", note: "Animation and interaction", rows: [
+    ["One animation or transition", "Animate this card opening", "animate"],
+    ["A signature wow moment", "Give the hero a signature interaction", "cast"],
+    ["Scroll-driven effects", "Reveal sections as I scroll", "gsap-scrolltrigger"],
+    ["What should move?", "What could be animated here?", "find-animation-opportunities"],
+    ["Timing, easing, choreography", "Design the motion system for this app", "motion-design"],
+    ["Janky or stuttering", "This animation stutters", "animation-performance"],
+    ["Don't know what it's called", "What's it called when a popover bounces in?", "animation-vocabulary"],
+    ["Audit all motion in the app", "Audit the animations across the app", "improve-animations"],
+    ["Review motion in my changes", "/review-animations", "review-animations", null, ["type /name"]],
+    ["3D scene or object", "Add a 3D product viewer", "threejs-*"],
+    ["React Native or Expo", "Add a swipe-to-dismiss sheet in my Expo app", "animate-expo"],
+  ]},
+  { name: "Check", note: "Before it ships", rows: [
+    ["UX critique", "Critique this page", "impeccable", "critique"],
+    ["Accessibility and performance audit", "Audit accessibility and performance", "impeccable", "audit"],
+    ["Audit against design principles", "Audit this against Rams' principles", "claude-mem:design-is"],
+    ["Break it with worst-case data", "Try to break this table", "break-ui"],
+    ["Production-ready edge cases", "Harden this form", "impeccable", "harden"],
+    ["See it in a real browser", "Test this in the browser", "webapp-testing"],
+    ["Write down the design system", "Write a DESIGN.md for this project", "impeccable", "document"],
+  ]},
+  { name: "Beyond websites", note: "Other visual work", rows: [
+    ["Diagram or chart", "Draw an architecture diagram of my app", "diagram-design"],
+    ["Poster or static artwork", "Make a poster for the launch event", "canvas-design"],
+    ["Generative art", "Make a flow-field artwork", "algorithmic-art"],
+    ["Theme slides or docs", "Theme this deck", "theme-factory"],
+  ]},
+];
+
+const VERBS = [
+  ["shape", "Plan the UX and UI before any code"],
+  ["polish", "Final pass on alignment, spacing and details"],
+  ["critique", "UX review: hierarchy, clarity, feel"],
+  ["audit", "Accessibility, performance, responsive checks"],
+  ["bolder", "Make a safe design more striking"],
+  ["quieter", "Calm down an aggressive design"],
+  ["colorize", "Add purposeful color to a flat UI"],
+  ["typeset", "Fix fonts, sizes and text hierarchy"],
+  ["layout", "Fix spacing, grids and visual rhythm"],
+  ["clarify", "Rewrite labels, errors and microcopy"],
+  ["distill", "Strip it down to the essentials"],
+  ["adapt", "Make it work across screens and devices"],
+  ["harden", "Errors, overflow, i18n and edge cases"],
+  ["animate", "Add purposeful motion to a feature"],
+  ["delight", "Add moments of personality and joy"],
+  ["overdrive", "Ambitious effects: shaders, physics"],
+  ["onboard", "First-run flows and empty states"],
+  ["optimize", "Load speed, rendering and bundle size"],
+  ["document", "Write DESIGN.md from the current UI"],
+  ["extract", "Pull reusable tokens and components"],
+  ["init", "Set up a project for Impeccable"],
+  ["live", "Pick elements in the browser and redesign them"],
+];
+
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const groupsEl = document.getElementById("groups");
+const rowsIndex = [];
+
+GROUPS.forEach(g => {
+  const sec = el("section", "group");
+  const head = el("div", "group-head");
+  head.append(el("h2", null, g.name), el("span", null, g.note));
+  const table = el("div", "table");
+  const cols = el("div", "cols");
+  cols.append(el("div", null, "When you want to"), el("div", null, "Say something like"), el("div", null, "Skill"));
+  table.append(cols);
+  g.rows.forEach(([job, say, skill, verb, tag]) => {
+    const row = el("div", "row");
+    const btn = el("button", "say", "“" + say + "”");
+    btn.type = "button";
+    btn.title = "Copy this phrase";
+    btn.addEventListener("click", () => copy(say, btn));
+    const pick = el("div", "pick");
+    pick.append(el("span", "skill", verb ? skill + " " + verb : skill));
+    if (tag) pick.append(el("span", "tag" + (tag[1] ? " " + tag[1] : ""), tag[0]));
+    row.append(el("div", "job", job), btn, pick);
+    table.append(row);
+    rowsIndex.push({ row, sec, text: [job, say, skill, verb || "", g.name].join(" ").toLowerCase() });
+  });
+  sec.append(head, table);
+  groupsEl.append(sec);
+});
+groupsEl.style.display = "flex";
+groupsEl.style.flexDirection = "column";
+groupsEl.style.gap = "36px";
+
+const verbsEl = document.getElementById("verbs");
+VERBS.forEach(([v, d]) => {
+  const c = el("div", "verb");
+  c.append(el("code", null, v), el("p", null, d));
+  verbsEl.append(c);
+});
+
+function copy(text, btn) {
+  const done = () => { btn.classList.add("copied"); setTimeout(() => btn.classList.remove("copied"), 1400); };
+  try {
+    navigator.clipboard.writeText(text).then(done, () => selectFallback(btn));
+  } catch (e) { selectFallback(btn); }
+}
+function selectFallback(btn) {
+  const r = document.createRange(); r.selectNodeContents(btn);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+const q = document.getElementById("q");
+const count = document.getElementById("count");
+const empty = document.getElementById("empty");
+function filter() {
+  const terms = q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  let shown = 0;
+  const visibleSecs = new Set();
+  rowsIndex.forEach(r => {
+    const hit = terms.every(t => r.text.includes(t));
+    r.row.hidden = !hit;
+    if (hit) { shown++; visibleSecs.add(r.sec); }
+  });
+  rowsIndex.forEach(r => { r.sec.hidden = !visibleSecs.has(r.sec); });
+  empty.hidden = shown > 0;
+  count.textContent = terms.length ? shown + " of " + rowsIndex.length + " jobs match" : rowsIndex.length + " jobs mapped";
+  try { localStorage.setItem("router-q", q.value); } catch (e) {}
+}
+try { const saved = localStorage.getItem("router-q"); if (saved) q.value = saved; } catch (e) {}
+q.addEventListener("input", filter);
+filter();
+</script>
+</body>
+</html>
